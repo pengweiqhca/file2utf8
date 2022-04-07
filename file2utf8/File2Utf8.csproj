@@ -8,6 +8,7 @@
     <IsPackable>true</IsPackable>
     <Nullable>enable</Nullable>
     <OutputType>Exe</OutputType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>utf-8 bom unicode encoding</PackageTags>
     <PackAsTool>true</PackAsTool>
     <TargetFramework>net6.0</TargetFramework>
@@ -15,6 +16,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="\" Visible="false" />
+
     <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="4.0.1" />
     <PackageReference Include="UTF.Unknown" Version="2.5.0" />
   </ItemGroup>
