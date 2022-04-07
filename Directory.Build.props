@@ -1,0 +1,17 @@
+<Project>
+
+  <PropertyGroup>
+    <Authors>pengweiqhca</Authors>
+    <Product>file2utf8</Product>
+    <Copyright>Copyright © pengweiqhca</Copyright>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageProjectUrl>https://github.com/pengweiqhca/file2utf8</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/pengweiqhca/file2utf8</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <LangVersion>10.0</LangVersion>
+    <ToolCommandName>file2utf8</ToolCommandName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Version>0.4.0</Version>
+  </PropertyGroup>
+
+</Project>
