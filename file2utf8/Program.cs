@@ -6,7 +6,7 @@ using UtfUnknown;
 
 namespace File2Utf8;
 
-[Command(Name = "file2utf8", Description = "Convert a non-utf8 file to UTF-8")]
+[Command(Name = "file2utf8", Description = "Convert a non-utf8 file to UTF-8 (default is without BOM)")]
 [HelpOption]
 public class Program
 {
@@ -19,7 +19,7 @@ public class Program
     [DefaultValue("*.cs")]
     public string SearchPattern { get; } = "*.cs";
 
-    [Option("-b|--bom", Description = "UTF8 or UTF8 with BOM.")]
+    [Option("-b|--bom", Description = "UTF8 with BOM.")]
     public bool WithBom { get; }
 
     [Option("-c|--confidence", Description = "The confidence of the found encoding. Between 0 and 1.")]
