@@ -75,22 +75,41 @@ rootCommand.SetAction(result =>
 
     foreach (var file in Directory.Exists(path)
                  ? Directory.GetFiles(path, searchPattern, SearchOption.AllDirectories)
-                 : new[] { path })
+                 : [path])
     {
-        if (CharsetDetector.DetectFromFile(file) is not { Detected.Encoding: { } encoding } cd ||
-            (withBom
-                ? GetEncodingName(encoding) != "utf-8-bom"
-                : GetEncodingName(encoding) is "utf-8" or "us-ascii") ||
-            ignoreUtf8Files && encoding.WebName == "utf-8") continue;
-
-        if (cd.Detected.Confidence < confidence)
-            Console.WriteLine(
-                $"Have no enough confidence: {GetEncodingName(encoding)} {cd.Detected.Confidence * 100:0.##}% {file}");
-        else
+        try
         {
-            if (!debug) File.WriteAllText(file, File.ReadAllText(file, encoding), utf8);
+            if (CharsetDetector.DetectFromFile(file) is not { Detected.Encoding: { } encoding } cd) continue;
 
-            Console.WriteLine($"{GetEncodingName(encoding)} {cd.Detected.Confidence * 100:0.##}% {file}");
+            var encodingName = GetEncodingName(encoding);
+
+            // Skip if ignoreUtf8Files is true and file is any kind of UTF-8
+            if (ignoreUtf8Files && (encoding.WebName == "utf-8" || encodingName == "utf-8-bom")) continue;
+
+            // Skip if file is already in the desired format
+            if (withBom)
+            {
+                // When wanting BOM, skip if already UTF-8 with BOM
+                if (encodingName == "utf-8-bom") continue;
+            }
+            else
+            {
+                // When not wanting BOM, skip if already UTF-8 without BOM or US-ASCII
+                if (encodingName is "utf-8" or "us-ascii") continue;
+            }
+
+            if (cd.Detected.Confidence < confidence)
+                Console.WriteLine($"Do not have enough confidence: {encodingName} {cd.Detected.Confidence * 100:0.##}% {file}");
+            else
+            {
+                if (!debug) File.WriteAllText(file, File.ReadAllText(file, encoding), utf8);
+
+                Console.WriteLine($"{encodingName} {cd.Detected.Confidence * 100:0.##}% {file}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error processing file '{file}': {ex.Message}");
         }
     }
 
