@@ -1,70 +1,93 @@
-using McMaster.Extensions.CommandLineUtils;
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
+using System.CommandLine;
 using System.Text;
 using UtfUnknown;
 
 namespace File2Utf8;
 
-[Command(Name = "file2utf8", Description = "Convert a non-utf8 file to UTF-8 (default is without BOM)")]
-[HelpOption]
 public class Program
 {
-    [Required(ErrorMessage = "You must specify the path to a directory or file to convert")]
-    [Argument(0, Name = "path", Description = "Path to the file or directory to convert")]
-    [FileOrDirectoryExists]
-    public string? Path { get; }
-
-    [Argument(1, Name = "searchPattern", Description = "If Path is directory, the search string to match against the names of files in path. This parameter can contain a combination of valid literal path and wildcard (* and ?) characters, but it doesn't support regular expressions.")]
-    [DefaultValue("*.cs")]
-    public string SearchPattern { get; } = "*.cs";
-
-    [Option("-b|--bom", Description = "UTF8 with BOM.")]
-    public bool WithBom { get; }
-
-    [Option("-c|--confidence", Description = "The confidence of the found encoding. Between 0 and 1.")]
-    [Range(0.0, 1.0)]
-    [DefaultValue("0.9")]
-    public float Confidence { get; } = 0.9f;
-
-    [Option("-d|--debug", Description = "Show unmatched files, does not convert.")]
-    public bool Debug { get; }
-
-    [Option("-i|--ignore-utf8-files", Description = "Ignore utf-8 files, even not match bom.")]
-    public bool IgnoreUtf8Files { get; }
-
-    public static Task<int> Main(string[] args) => CommandLineApplication.ExecuteAsync<Program>(args);
-
-    public int OnExecute(CommandLineApplication app, IConsole console)
+    public static async Task<int> Main(string[] args)
     {
-        if (Path == null)
-        {
-            app.ShowHelp();
+        var pathArgument = new Argument<string>(
+            name: "path",
+            description: "Path to the file or directory to convert");
 
-            return 1;
+        var searchPatternArgument = new Argument<string>(
+            name: "searchPattern",
+            getDefaultValue: () => "*.cs",
+            description: "If Path is directory, the search string to match against the names of files in path. This parameter can contain a combination of valid literal path and wildcard (* and ?) characters, but it doesn't support regular expressions.");
+
+        var bomOption = new Option<bool>(
+            aliases: new[] { "-b", "--bom" },
+            description: "UTF8 with BOM.");
+
+        var confidenceOption = new Option<float>(
+            aliases: new[] { "-c", "--confidence" },
+            getDefaultValue: () => 0.9f,
+            description: "The confidence of the found encoding. Between 0 and 1.");
+
+        var debugOption = new Option<bool>(
+            aliases: new[] { "-d", "--debug" },
+            description: "Show unmatched files, does not convert.");
+
+        var ignoreUtf8FilesOption = new Option<bool>(
+            aliases: new[] { "-i", "--ignore-utf8-files" },
+            description: "Ignore utf-8 files, even not match bom.");
+
+        var rootCommand = new RootCommand("Convert a non-utf8 file to UTF-8 (default is without BOM)")
+        {
+            pathArgument,
+            searchPatternArgument,
+            bomOption,
+            confidenceOption,
+            debugOption,
+            ignoreUtf8FilesOption
+        };
+
+        rootCommand.SetHandler(Execute, pathArgument, searchPatternArgument, bomOption, confidenceOption, debugOption, ignoreUtf8FilesOption);
+
+        return await rootCommand.InvokeAsync(args);
+    }
+
+    private static void Execute(string path, string searchPattern, bool withBom, float confidence, bool debug, bool ignoreUtf8Files)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            Console.WriteLine("You must specify the path to a directory or file to convert");
+            Environment.Exit(1);
         }
 
-        var utf8 = WithBom ? Encoding.UTF8 : new UTF8Encoding(false);
+        if (!File.Exists(path) && !Directory.Exists(path))
+        {
+            Console.WriteLine($"Path '{path}' does not exist");
+            Environment.Exit(1);
+        }
 
-        foreach (var file in Directory.Exists(Path)
-            ? Directory.GetFiles(Path, SearchPattern, SearchOption.AllDirectories)
-            : new[] { Path })
+        if (confidence < 0.0f || confidence > 1.0f)
+        {
+            Console.WriteLine("Confidence must be between 0 and 1");
+            Environment.Exit(1);
+        }
+
+        var utf8 = withBom ? Encoding.UTF8 : new UTF8Encoding(false);
+
+        foreach (var file in Directory.Exists(path)
+            ? Directory.GetFiles(path, searchPattern, SearchOption.AllDirectories)
+            : new[] { path })
         {
             if (CharsetDetector.DetectFromFile(file) is not { Detected.Encoding: { } encoding } cd ||
-                (WithBom ? GetEncodingName(encoding) != "utf-8-bom" : GetEncodingName(encoding) is "utf-8" or "us-ascii") ||
-                IgnoreUtf8Files && encoding.WebName == "utf-8") continue;
+                (withBom ? GetEncodingName(encoding) != "utf-8-bom" : GetEncodingName(encoding) is "utf-8" or "us-ascii") ||
+                ignoreUtf8Files && encoding.WebName == "utf-8") continue;
 
-            if (cd.Detected.Confidence < Confidence)
-                console.WriteLine($"Have no enough confidence: {GetEncodingName(encoding)} {cd.Detected.Confidence * 100:0.##}% {file}");
+            if (cd.Detected.Confidence < confidence)
+                Console.WriteLine($"Have no enough confidence: {GetEncodingName(encoding)} {cd.Detected.Confidence * 100:0.##}% {file}");
             else
             {
-                if (!Debug) File.WriteAllText(file, File.ReadAllText(file, encoding), utf8);
+                if (!debug) File.WriteAllText(file, File.ReadAllText(file, encoding), utf8);
 
-                console.WriteLine($"{GetEncodingName(encoding)} {cd.Detected.Confidence * 100:0.##}% {file}");
+                Console.WriteLine($"{GetEncodingName(encoding)} {cd.Detected.Confidence * 100:0.##}% {file}");
             }
         }
-
-        return 0;
     }
 
     private static string GetEncodingName(Encoding encoding) =>
